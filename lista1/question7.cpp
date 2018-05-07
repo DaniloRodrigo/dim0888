@@ -65,16 +65,8 @@ int calculateVariance(Mat &src, int x, int y, int size){
     return round(sum/arr.size());
 }
 
-int main() {
-    Mat src; Mat dst;
-    Scalar value;
-    int pixel;
-
-    src = imread("../images/woman low contrast.jpg", 0);
-    dst = src.clone();
-
-
-    int size = (int) 3 / 2;
+void applyHighBoost(Mat &src, Mat &dst, int filterSize, int k, string name){
+    int size = (int) filterSize / 2;
 
     copyMakeBorder( src, dst, size, size, size, size, BORDER_CONSTANT, 0 );
 
@@ -89,27 +81,51 @@ int main() {
     Mat mask = src.clone();
 
 
-//    mask = src - dst;
+   mask = src - dst;
 
-    for (int i = 0; i < src.rows; ++i) {
-        for (int j = 0; j < src.cols; ++j) {
-            int x = abs((int) src.at<uchar>(i, j) - (int) dst.at<uchar>(i, j));
-//            mask.at<uchar>(i, j) = src.at<uchar>(i, j) - dst.at<uchar>(i, j);
-            mask.at<uchar>(i, j) = x;
-            cout << (int) src.at<uchar>(i, j) << " " <<  (int) dst.at<uchar>(i, j) << " " << (int) mask.at<uchar>(i, j) << " " << x << endl;
-        }
+    // for (int i = 0; i < src.rows; ++i) {
+    //     for (int j = 0; j < src.cols; ++j) {
+    //         int x = abs((int) src.at<uchar>(i, j) - (int) dst.at<uchar>(i, j));
+    //         mask.at<uchar>(i, j) = x;
+    //         cout << (int) src.at<uchar>(i, j) << " " <<  (int) dst.at<uchar>(i, j) << " " << (int) mask.at<uchar>(i, j) << " " << x << endl;
+    //     }
+    // }
+
+
+    Mat result = src +  (k * mask);
+
+    // imshow("Original", src);
+    // imshow("Equalized", dst);
+    imwrite("output/question7/blurred_" + name, dst);
+    // imshow("Mask", mask);
+    imwrite("output/question7/mask_" + name, mask);
+    // imshow("Final", result);
+    imwrite("output/question7/result_" + name, result);
+    waitKey(0);
+    // destroyAllWindows(); 
+}
+
+int main() {
+    Mat src; Mat dst;
+    string images [] = {
+           "images/google.jpg",
+           "output/question5/google.jpg",
+           "images/woman.jpg",
+           "output/question5/woman.jpg"
+    };
+    string names [] = {
+           "google.jpg",
+           "google_hist.jpg",
+           "woman.jpg",
+           "woman_hist.jpg"
+    };
+
+
+    for (int i = 0; i < images->size(); ++i) {
+        src = imread(images[i], 0);
+        dst = src.clone();
+        applyHighBoost(src, dst, 3, 2, names[i]);
     }
 
-
-    Mat final = src +  (2 * mask);
-
-//    cout << final << endl;
-
-    imshow("Original", src);
-    imshow("Equalized", dst);
-    imshow("Mask", mask);
-    imshow("Final", final);
-    waitKey(0);
-    destroyAllWindows();
     return 0;
 }

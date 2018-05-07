@@ -94,47 +94,50 @@ void createButterworthFilter(Size size, Mat& dst, int uX, int uY, int n, int d0)
     dst = complexOutput;
 }
 
-void calculateIdealFilter(Mat& src, Mat& dst, int uX, int uY, int d0){
-    Mat output = src.clone();
-    for (int i = 0; i < src.size().height; ++i) {
-        for (int j = 0; j < src.size().width; ++j) {
-            float D = (float) sqrt(pow(i - uX, 2) + pow(j - uY, 2));
-            if(D > d0){
-                output.at<float>(i, j) = 0.0f;
-//                output.at<float>(i, j) = 0.0f;
-            }
+void createButterworthFilter4(Size size, Mat& dst, int uX, int uY, int n, int d0){
+    Mat mask = Mat(size, CV_32F);
+
+
+    for (int i = 0; i < size.height/2; ++i) {
+        for (int j = 0; j < size.width/2 ; ++j) {
+            float D = (float) sqrt(pow(i - uX/2, 2) + pow(j - uY/2 , 2));
+            float value = ( 1 / ( 1 + (pow(D/(float)d0, 2 * n))));
+            mask.at<float>(i, j) = value;
+            mask.at<float>(i + uX, j) = value; 
+            mask.at<float>(i, j + uY) = value;
+            mask.at<float>(i + uX, j + uY) = value;
         }
     }
-//    Mat complexOutput;
-//    vector<Mat> output = {mask, Mat::zeros(size, CV_32F), Mat::zeros(size, CV_32F)};
-//    merge(output, complexOutput);
+    Mat complexOutput;
+    Mat output[2] = {mask, mask};
+    merge(output, 2, complexOutput);
 
-    dst = output;
+    dst = complexOutput;
 }
+
 
 int main(int argc, char ** argv)
 {
 
-    Mat src = imread("../images/Man on the moon - noisy.png", CV_LOAD_IMAGE_GRAYSCALE);
+    Mat src = imread("images/man-on-the-moon-noisy.png", CV_LOAD_IMAGE_GRAYSCALE);
+    // Mat src = imread("images/pompei-periodic-noise.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+
     Mat srcFloat, srcDFT;
     src.convertTo(srcFloat, CV_32FC1, 1.0 / 255.0);
 
     calculateDFT(srcFloat, srcDFT);
     Mat mask;
 
-    createButterworthFilter(Size(srcDFT.cols, srcDFT.rows), mask, srcDFT.rows/2 , srcDFT.cols/2, 10, 10);
+    createButterworthFilter(Size(srcDFT.cols, srcDFT.rows), mask, srcDFT.rows/2 , srcDFT.cols/2, 1, 25);
+    // shiftDFT(mask);
+    // plotDFTMagnitudeSpectrum(mask);
     shiftDFT(srcDFT);
-//    calculateDFT(mask, maskDFT);
-//    shiftDFT(mask);
-//    plotDFTMagnitudeSpectrum(mask);
-
-
 
 //    Mat filtered =  srcDFT * mask;
     Mat filtered;
     mulSpectrums(srcDFT, mask, filtered, DFT_COMPLEX_OUTPUT);
     shiftDFT(filtered);
-//    plotDFTMagnitudeSpectrum(filtered);
+    // plotDFTMagnitudeSpectrum(filtered);
 
 
     Mat idft;

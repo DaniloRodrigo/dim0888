@@ -82,11 +82,11 @@ void applyMedianFilter(Mat &src, Mat &dst, int filterSize, string name){
     cout << dst.rows << " " << dst.cols << endl;
     cout << pow(4, 2) << endl;
 
-//    imshow("Original", src);
-//    imshow("Equalized", dst);
-    imwrite("../output/median_" + to_string(filterSize) + "_" + name, dst);
-//    waitKey(0);
-//    destroyAllWindows();
+   imshow("Original", src);
+   imshow("Equalized", dst);
+    // imwrite("../output/median_" + to_string(filterSize) + "_" + name, dst);
+   waitKey(0);
+   destroyAllWindows();
 }
 
 int main() {
@@ -109,7 +109,7 @@ int main() {
     };
 
     for (int i = 0; i < images->size(); ++i) {
-        src = imread("../images/" + images[i], 0);
+        src = imread("images/" + images[i], 0);
         dst = src.clone();
         applyMedianFilter(src, dst, 3,images[i]);
     }

@@ -4,18 +4,18 @@
 using namespace std;
 using namespace cv;
 
-void calculateDFT(Mat& src, Mat& dst){
+void calculateDFT(Mat &src, Mat &dst) {
     Mat srcComplex[2] = {src, Mat::zeros(src.size(), CV_32F)};
     Mat dftReady;
     merge(srcComplex, 2, dftReady);
 
     Mat srcDFT;
-    dft(dftReady, srcDFT, DFT_COMPLEX_OUTPUT);
+    dft(dftReady, srcDFT, DFT_REAL_OUTPUT);
 
     dst = srcDFT;
 }
 
-void calculateIDFT(Mat& src, Mat& dst){
+void calculateIDFT(Mat &src, Mat &dst) {
     Mat inverse;
 
     dft(src, inverse, DFT_INVERSE | DFT_REAL_OUTPUT | DFT_SCALE);
@@ -23,9 +23,9 @@ void calculateIDFT(Mat& src, Mat& dst){
     dst = inverse;
 }
 
-void shiftDFT(Mat& src){
-    int centerX = src.cols/2;
-    int centerY = src.rows/2;
+void shiftDFT(Mat &src) {
+    int centerX = src.cols / 2;
+    int centerY = src.rows / 2;
 
     Mat q1(src, Rect(0, 0, centerX, centerY));
     Mat q2(src, Rect(centerX, 0, centerX, centerY));
@@ -43,118 +43,48 @@ void shiftDFT(Mat& src){
     tmp.copyTo(q3);
 }
 
-void plotDFTMagnitudeSpectrum(Mat& srcDFT){
-    Mat splitArray[2] = {Mat::zeros(srcDFT.size(), CV_32F), Mat::zeros(srcDFT.size(), CV_32F)};
-    split(srcDFT, splitArray);
-    Mat dftMagnitude;
-    magnitude(splitArray[0], splitArray[1], dftMagnitude);
-    dftMagnitude += Scalar::all(1);
-    log(dftMagnitude, dftMagnitude);
-    normalize(dftMagnitude, dftMagnitude, 0, 1, NORM_MINMAX);
-
-    shiftDFT(dftMagnitude);
-    imshow("Magnitude Spectrum", dftMagnitude);
-    waitKey();
-}
-
-void createIdealFilter(Size size, Mat& dst, int uX, int uY){
-    Mat mask = Mat(size, CV_32F);
-
-    for (int i = 0; i < size.height; ++i) {
-        for (int j = 0; j < size.width; ++j) {
-            float D = (float) sqrt(pow(i - uX, 2) + pow(j - uY, 2));
-            if(D > 40){
-                mask.at<float>(i, j) = 0.0f;
-            }else{
-                mask.at<float>(i, j) = 1.0f;
-            }
-        }
-    }
-    Mat complexOutput;
-    Mat output[2] = {mask, mask};
-    merge(output, 2, complexOutput);
-
-    dst = complexOutput;
-}
-
-void createButterworthFilter(Size size, Mat& dst, int uX, int uY, int n, int d0){
-    Mat mask = Mat(size, CV_32F);
-
-    for (int i = 0; i < size.height; ++i) {
-        for (int j = 0; j < size.width; ++j) {
-            float D = (float) sqrt(pow(i - uX, 2) + pow(j - uY, 2));
-            float value = ( 1 / ( 1 + (pow(D/(float)d0, 2 * n))));
-            mask.at<float>(i, j) = value;
-        }
-    }
-    Mat complexOutput;
-    Mat output[2] = {mask, mask};
-    merge(output, 2, complexOutput);
-
-    dst = complexOutput;
-}
-
-void calculateIdealFilter(Mat& src, Mat& dst, int uX, int uY, int d0){
-    Mat output = src.clone();
-    for (int i = 0; i < src.size().height; ++i) {
-        for (int j = 0; j < src.size().width; ++j) {
-            float D = (float) sqrt(pow(i - uX, 2) + pow(j - uY, 2));
-            if(D > d0){
-                output.at<float>(i, j) = 0.0f;
-//                output.at<float>(i, j) = 0.0f;
-            }
-        }
-    }
-//    Mat complexOutput;
-//    vector<Mat> output = {mask, Mat::zeros(size, CV_32F), Mat::zeros(size, CV_32F)};
-//    merge(output, complexOutput);
-
-    dst = output;
+double calculateRMSE(Mat &mat1, Mat &mat2){
+    Mat diff = mat1 - mat2;
+    Mat square = diff.mul(diff);
+    double s = sum(square)[0];
+    double rmse = s / (mat1.rows * mat1.cols); 
+    cout << rmse << endl;
+    return rmse;
 }
 
 int main(int argc, char ** argv)
 {
+    Mat src, srcGT, srcFloat, srcDFT, idft;
+    
+    src = imread("images/lighthouse_blurred.png", CV_LOAD_IMAGE_GRAYSCALE);
+    srcGT = imread("images/lighthouse.png", CV_LOAD_IMAGE_GRAYSCALE);
 
-    Mat src = imread("../images/Man on the moon - noisy.png", CV_LOAD_IMAGE_GRAYSCALE);
-    Mat srcFloat, srcDFT;
     src.convertTo(srcFloat, CV_32FC1, 1.0 / 255.0);
-
     calculateDFT(srcFloat, srcDFT);
-    Mat mask;
 
-    createButterworthFilter(Size(srcDFT.cols, srcDFT.rows), mask, srcDFT.rows/2 , srcDFT.cols/2, 10, 10);
-    shiftDFT(srcDFT);
-//    calculateDFT(mask, maskDFT);
-//    shiftDFT(mask);
-//    plotDFTMagnitudeSpectrum(mask);
+    double k = calculateRMSE(srcGT, src);
+    
+    Mat power = srcDFT.mul(srcDFT);
+    Mat inverse = 1/srcDFT;
 
+    Mat wiener = inverse.mul(power / (power + k));
+    Mat result = srcDFT.mul(wiener);
 
+    
+    
 
-//    Mat filtered =  srcDFT * mask;
-    Mat filtered;
-    mulSpectrums(srcDFT, mask, filtered, DFT_COMPLEX_OUTPUT);
-    shiftDFT(filtered);
-//    plotDFTMagnitudeSpectrum(filtered);
+    // mulSpectrums(1/srcDFT, (power / (power + 1)), wiener, DFT_REAL_OUTPUT);
+    // mulSpectrums(srcDFT, wiener, result, DFT_REAL_OUTPUT);
+    Mat finalF;
+    calculateIDFT(result, idft);
+    
+    normalize(idft, finalF, 0, 1, NORM_MINMAX);
+    cout << finalF << endl;
+    // Mat x = srcDFT * srcDFT;
 
+    cout << srcDFT.at<float>(10, 10) << " " << power.at<float>(10, 10) << endl;
 
-    Mat idft;
-    calculateIDFT(filtered, idft);
-//    for (int i = 0; i < srcDFT.size().height; ++i) {
-//        for (int j = 0; j < srcDFT.size().width; ++j) {
-//            idft.at<float>(i, j) = (float) srcDFT.at<float>(i, j) * (float) mask.at<float>(i, j);
-//        }
-//    }
-
-
-    cout << mask.channels() << " " << srcDFT.channels() << endl;
-
-
-    normalize(idft, idft, 0, 255, NORM_MINMAX, CV_8UC1);
-//    cout << idft << endl;
-
-    imshow("Original", src);
-//    imshow("Mask", mask);
-    imshow("Recovered", idft);
+    imshow("Result", finalF);
     waitKey();
 
     return 0;

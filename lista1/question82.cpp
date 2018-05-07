@@ -5,64 +5,35 @@ using namespace std;
 using namespace cv;
 
 Mat src, srcCallback, srcCallbackOriginal, srcDFT, srcFloat;
-Point begin, end, begin2, end2;
-bool first = true;
+Point begin, end;
 bool drag = false;
-bool reject = true;
-float D, D2;
+float D;
 
 void onMouse(int evt, int x, int y, int flags, void *param ) {
     Mat *srcCallback = (Mat*) param;
     if (evt == CV_EVENT_LBUTTONDOWN) {
-        if(::first){
-            ::begin.x = x;
-            ::begin.y = y;
-
-            // ::begin2.x = 0;
-            // ::begin2.y = 0;
-            // ::end2.x = 0;
-            // ::end2.y = 0;
-            // ::D2 = 0;
-        }else{
-            ::begin2.x = x;
-            ::begin2.y = y;
-        }
+//        vector<cv::Point> *ptPtr = (vector<Point> *) param;
+//        ptPtr->push_back(cv::Point(x, y));
+        ::begin.x = x;
+        ::begin.y = y;
         drag = true;
     }else if(evt == CV_EVENT_MOUSEMOVE && drag){
         *srcCallback = ::srcCallbackOriginal.clone();
-        if(::first){
-            ::end.x = x;
-            ::end.y = y;
-            ::D = (float) sqrt(pow(x - ::begin.x, 2) + pow(y - ::begin.y, 2));
-            circle(*srcCallback, ::begin, D, Scalar(255, 0, 0));
-        }else{
-            ::end2.x = x;
-            ::end2.y = y;
-            ::D2 = (float) sqrt(pow(x - ::begin2.x, 2) + pow(y - ::begin2.y, 2));
-            circle(*srcCallback, ::begin, D, Scalar(255, 0, 0));
-            circle(*srcCallback, ::begin2, D2, Scalar(255, 0, 0));
-        }
+        ::end.x = x;
+        ::end.y = y;
+        ::D = (float) sqrt(pow(x - ::begin.x, 2) + pow(y - ::begin.y, 2));
+        circle(*srcCallback, ::begin, D, Scalar(255, 0, 0));
         imshow("Select ROI", *srcCallback);
     }else if(evt == CV_EVENT_LBUTTONUP && drag){
         *srcCallback = ::srcCallbackOriginal.clone();
-        if(::first){
-            ::end.x = x;
-            ::end.y = y;
-            ::D = (float) sqrt(pow(x - ::begin.x, 2) + pow(y - ::begin.y, 2));
-            circle(*srcCallback, ::begin, D, Scalar(255, 0, 0));
-            ::first = false;
-        }else{
-            ::end2.x = x;
-            ::end2.y = y;
-            ::D2 = (float) sqrt(pow(x - ::begin2.x, 2) + pow(y - ::begin2.y, 2));
-            circle(*srcCallback, ::begin, D, Scalar(255, 0, 0));
-            circle(*srcCallback, ::begin2, D2, Scalar(255, 0, 0));
-            ::first = true;
-        }
+        ::end.x = x;
+        ::end.y = y;
+        ::D = (float) sqrt(pow(x - ::begin.x, 2) + pow(y - ::begin.y, 2));
+        circle(*srcCallback, ::begin, D, Scalar(255, 0, 0));
         imshow("Select ROI", *srcCallback);
         ::drag = false;
-        // cout << ::begin.x << " " << ::begin.y << endl;
-        // cout << ::end.x << " " << ::end.y << endl;
+        cout << ::begin.x << " " << ::begin.y << endl;
+        cout << ::end.x << " " << ::end.y << endl;
     }
 }
 
@@ -144,11 +115,16 @@ void drawCircle(Mat &src, int uX, int uY, float radius) {
         for (int j = 0; j < src.size().width; ++j) {
             float D = (float) sqrt(pow(i - uY, 2) + pow(j - uX, 2));
             if (D < radius) {
-                if(reject)
-                    src.at<float>(i, j) = 0.0f;
-                else
-                    src.at<float>(i, j) = 1.0f;
+                src.at<float>(i, j) = 0.0f;
             } 
+        }
+    }
+}
+
+void drawRect(Mat &src, Point begin, Point end){
+    for (int i = begin.y; i < end.y; ++i) {
+        for (int j = begin.x; j < end.x; ++j) {
+            src.at<float>(i, j) = 0.0f;
         }
     }
 }
@@ -160,69 +136,59 @@ void toComplex(Mat src, Mat &dst){
     dst = complexOutput;
 }
 
-Point getInverse(Mat &src, Point point){
-    int centerX = src.cols/2;
-    int centerY = src.rows/2;
-
-    int x = centerX + (centerX - point.x);
-    int y = centerY + (centerY - point.y);
-
-    return Point(x, y);
-}
-
 int main(int argc, char **argv) {
 
     // src = imread("images/mit_noise_periodic.jpg", CV_LOAD_IMAGE_GRAYSCALE);
     src = imread("images/pompei-periodic-noise.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-    // src = imread("images/man-on-the-moon-noisy.png", CV_LOAD_IMAGE_GRAYSCALE);
-
 
     if (src.empty())
         return -1;
 
-    namedWindow("Select ROI", 1);
-    setMouseCallback("Select ROI", onMouse, (void *)&srcCallback);
+    // namedWindow("Select ROI", 1);
+    // setMouseCallback("Select ROI", onMouse, (void *)&srcCallback);
 
     src.convertTo(srcFloat, CV_32FC1, 1.0 / 255.0);
     calculateDFT(srcFloat, srcDFT);
-    plotDFTMagnitudeSpectrum(srcDFT, srcCallback, true);
-    srcCallbackOriginal = srcCallback.clone();
+    // plotDFTMagnitudeSpectrum(srcDFT, srcCallback, true);
+    // srcCallbackOriginal = srcCallback.clone();
 
-    imshow("Select ROI", srcCallback);
-    waitKey();
-
-    Mat mask, filtered, idft, test;
-    Mat mask1d = Mat::zeros(srcDFT.rows, srcDFT.cols, CV_32F);
-    if(reject)
-        mask1d = Mat::ones(srcDFT.rows, srcDFT.cols, CV_32F);
-
-        
-
-    // drawing the fist selection
-    drawCircle(mask1d, ::begin.x, ::begin.y, D);
-    Point inverse = getInverse(srcDFT, Point(::begin.x, ::begin.y));
-    drawCircle(mask1d, inverse.x, inverse.y, D);
-
-    // drawing the second selection
-    drawCircle(mask1d, ::begin2.x, ::begin2.y, D2);
-    Point inverse2 = getInverse(srcDFT, Point(::begin2.x, ::begin2.y));
-    drawCircle(mask1d, inverse2.x, inverse2.y, D2);
-
-    // imshow("dadas", mask1d);
+    // imshow("Select ROI", srcCallback);
     // waitKey();
 
-    // createIdealFilter(Size(srcDFT.cols, srcDFT.rows), mask, ::begin.y, ::begin.x, D);
-    // plotDFTMagnitudeSpectrum(srcDFT, test, true);
-    toComplex(mask1d, mask);
+    Mat mask, filtered, idft;
+
+    Mat test = Mat::ones(srcDFT.rows, srcDFT.cols, CV_32F);
+
+    // drawCircle(test, 180, 220, 200);
+    // drawCircle(test, 220, 820, 200);
+    // drawCircle(test, 600, 220, 200);
+    // drawCircle(test, 600, 820, 200);
+
+    // drawRect(test, Point(10,10), Point(450, 350));
+    // drawRect(test, Point(10,400), Point(450, 760));
+    // drawRect(test, Point(550,10), Point(1050, 350));
+    // drawRect(test, Point(550,400), Point(1050, 760));
+
+
+    drawCircle(test, 668, 306, 10);
+    drawCircle(test, 567, 405, 10);
+    drawCircle(test, 767, 406, 10);
+    drawCircle(test, 667, 506, 10);
+
+
+    toComplex(test, mask);
+    // imshow("dsada", test);
+    // waitKey();
+    // createIdealFilter4(Size(srcDFT.cols, srcDFT.rows), mask, srcDFT.rows/2, srcDFT.cols/2 - 30, 150);
+    // // plotDFTMagnitudeSpectrum(mask, test, false);
     shiftDFT(srcDFT);
     // cout << srcDFT.size() << " " << mask.size() << endl;
     mulSpectrums(srcDFT, mask, filtered, DFT_COMPLEX_OUTPUT);
     shiftDFT(filtered);
     plotDFTMagnitudeSpectrum(filtered, test, true);
-   
     
-    // imshow("esfds", test);
-    // waitKey();
+    imshow("esfds", test);
+    waitKey();
     calculateIDFT(filtered, idft);
     normalize(idft, idft, 0, 255, NORM_MINMAX, CV_8UC1);
 

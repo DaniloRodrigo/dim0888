@@ -4,21 +4,16 @@
 using namespace std;
 using namespace cv;
 
-Mat src; Mat dst;
-int hist [256];
-double equalizedHist [256];
-int pixel;
 
-void equalizeHistogram(Mat src){
+void equalizeHistogram(Mat &src, Mat &dst, string name){
+    int hist [256];
+    double equalizedHist [256];
 
-}
-
-int main() {
-//    namedWindow( window_name, WINDOW_AUTOSIZE );
-//    src = imread("../images/bear s and p.png", 0);
-//    src = imread("../images/Google JAX low contrast.jpg", 0);
-    src = imread("../images/woman low contrast.jpg", 0);
-    dst = src.clone();
+    // inicializing
+    for (int i = 0; i < 256; ++i) {
+        equalizedHist[i] = 0;
+        hist[i] = 0;
+    }
 
     // Calculating the histogram
     for (int i = 0; i < src.rows; ++i) {
@@ -53,8 +48,35 @@ int main() {
 
     imshow("Original", src);
     imshow("Equalized", dst);
-    imwrite("../output/woman_hist.jpg", dst);
+    // imwrite("output/question5/" + name, dst);
     waitKey(0);
     destroyAllWindows();
+}
+
+int main() {
+    Mat src; Mat dst;
+    string images [] = {
+            // "bear.png",
+            // "boat.png",
+            // "glass.png",
+           "google.jpg",
+//            "lighthouse.png",
+//            "lighthouse_blurred.png",
+            // "lions.png",
+            // "lungs10.jpg",
+            // "lungs30.jpg",
+            // "lungs50.jpg",
+//            "man-on-the-moon-noisy.png",
+//            "mit_noise_periodic.jpg",
+//            "pompei-periodic-noise.jpg",
+           "woman.jpg"
+    };
+
+    for (int i = 0; i < images->size(); ++i) {
+        src = imread("images/" + images[i], 0);
+        dst = src.clone();
+        equalizeHistogram(src, dst, images[i]);
+    }
+    
     return 0;
 }
