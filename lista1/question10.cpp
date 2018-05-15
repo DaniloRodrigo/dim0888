@@ -4,13 +4,15 @@
 using namespace std;
 using namespace cv;
 
+Mat src, srcCallback, srcCallbackOriginal, srcDFT, srcFloat;
+
 void calculateDFT(Mat &src, Mat &dst) {
     Mat srcComplex[2] = {src, Mat::zeros(src.size(), CV_32F)};
     Mat dftReady;
     merge(srcComplex, 2, dftReady);
 
     Mat srcDFT;
-    dft(dftReady, srcDFT, DFT_REAL_OUTPUT);
+    dft(dftReady, srcDFT, DFT_COMPLEX_OUTPUT);
 
     dst = srcDFT;
 }
@@ -43,49 +45,79 @@ void shiftDFT(Mat &src) {
     tmp.copyTo(q3);
 }
 
-double calculateRMSE(Mat &mat1, Mat &mat2){
-    Mat diff = mat1 - mat2;
-    Mat square = diff.mul(diff);
-    double s = sum(square)[0];
-    double rmse = s / (mat1.rows * mat1.cols); 
-    cout << rmse << endl;
-    return rmse;
+void plotDFTMagnitudeSpectrum(Mat srcDFT, bool inverse) {
+    Mat splitArray[2] = {Mat::zeros(srcDFT.size(), CV_32F), Mat::zeros(srcDFT.size(), CV_32F)};
+    split(srcDFT, splitArray);
+    Mat dftMagnitude;
+    magnitude(splitArray[0], splitArray[1], dftMagnitude);
+    dftMagnitude += Scalar::all(1);
+    log(dftMagnitude, dftMagnitude);
+    normalize(dftMagnitude, dftMagnitude, 0, 1, NORM_MINMAX);
+
+    if(inverse)
+        shiftDFT(dftMagnitude);
+
+    imshow("DFT", dftMagnitude);
+    waitKey();
 }
 
-int main(int argc, char ** argv)
-{
-    Mat src, srcGT, srcFloat, srcDFT, idft;
+int main(int argc, char **argv) {
+    Mat original, blurred, originalCropped, blurredCropped;
+
+    original = imread("images/lighthouse.png", 0);
+    blurred = imread("images/lighthouse_blurred.png", 0);
+
+    originalCropped = Mat(original.rows, original.cols, CV_8UC1, Scalar(0));
+    blurredCropped = Mat(original.rows, original.cols, CV_8UC1, Scalar(0));
+
+    // Used on the region estimation trying
+    // Rect roi = selectROI("Select region to estimate", original, false);
+    // original.rowRange(roi.y, roi.y+roi.height).colRange(roi.x, roi.x+roi.width).copyTo(originalCropped.rowRange(roi.y, roi.y+roi.height).colRange(roi.x, roi.x+roi.width));
+    // blurred.rowRange(roi.y, roi.y+roi.height).colRange(roi.x, roi.x+roi.width).copyTo(blurredCropped.rowRange(roi.y, roi.y+roi.height).colRange(roi.x, roi.x+roi.width));
+
+    Mat originalFloat, blurredFloat, originalDFT, blurredDFT; 
+
+
+    // originalCropped.convertTo(originalFloat, CV_32FC1, 1.0 / 255.0);
+    // blurredCropped.convertTo(blurredFloat, CV_32FC1, 1.0 / 255.0);
+    original.convertTo(originalFloat, CV_32FC1, 1.0 / 255.0);
+    blurred.convertTo(blurredFloat, CV_32FC1, 1.0 / 255.0);
     
-    src = imread("images/lighthouse_blurred.png", CV_LOAD_IMAGE_GRAYSCALE);
-    srcGT = imread("images/lighthouse.png", CV_LOAD_IMAGE_GRAYSCALE);
+    calculateDFT(originalFloat, originalDFT);
+    calculateDFT(blurredFloat, blurredDFT);
 
-    src.convertTo(srcFloat, CV_32FC1, 1.0 / 255.0);
-    calculateDFT(srcFloat, srcDFT);
+    // plotDFTMagnitudeSpectrum(originalDFT, true);
+    // plotDFTMagnitudeSpectrum(blurredDFT, true);
 
-    double k = calculateRMSE(srcGT, src);
+    Mat mask = blurredDFT / originalDFT;
+    // plotDFTMagnitudeSpectrum(mask, true);
+
+    Mat filtered = blurredDFT.clone();
+    float k = 0; 
+    for (int i = 0; i < original.rows; i++){
+        for (int j = 0; j < original.cols; j++){
+            float H = mask.at<float>(i, j);
+            float G = blurredDFT.at<float>(i, j);
+            // if(H != 0){ 
+            float wiener = (1/H)*(pow(H, 2) / (pow(H, 2) + k));
+                // cout << wiener << endl;
+            filtered.at<float>(i, j) = wiener * G;
+        }
+    }
+
+    // plotDFTMagnitudeSpectrum(filtered, true);
+
+    Mat idft, deblurred;
+    calculateIDFT(filtered, idft);
     
-    Mat power = srcDFT.mul(srcDFT);
-    Mat inverse = 1/srcDFT;
+    normalize(idft, deblurred, 0, 255, NORM_MINMAX, CV_8UC1);
 
-    Mat wiener = inverse.mul(power / (power + k));
-    Mat result = srcDFT.mul(wiener);
-
-    
-    
-
-    // mulSpectrums(1/srcDFT, (power / (power + 1)), wiener, DFT_REAL_OUTPUT);
-    // mulSpectrums(srcDFT, wiener, result, DFT_REAL_OUTPUT);
-    Mat finalF;
-    calculateIDFT(result, idft);
-    
-    normalize(idft, finalF, 0, 1, NORM_MINMAX);
-    cout << finalF << endl;
-    // Mat x = srcDFT * srcDFT;
-
-    cout << srcDFT.at<float>(10, 10) << " " << power.at<float>(10, 10) << endl;
-
-    imshow("Result", finalF);
+    // imshow("Original", original);
+    imshow("Blurred", blurred);
+    imshow("Deblurred", deblurred);
+    imwrite("output/question10/lighthouse_deblurred.png", deblurred);
     waitKey();
+    destroyAllWindows();
 
     return 0;
 }

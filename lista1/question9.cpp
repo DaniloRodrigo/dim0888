@@ -130,7 +130,7 @@ int main(int argc, char ** argv)
 
     createButterworthFilter(Size(srcDFT.cols, srcDFT.rows), mask, srcDFT.rows/2 , srcDFT.cols/2, 1, 25);
     // shiftDFT(mask);
-    // plotDFTMagnitudeSpectrum(mask);
+    plotDFTMagnitudeSpectrum(srcDFT);
     shiftDFT(srcDFT);
 
 //    Mat filtered =  srcDFT * mask;
@@ -139,21 +139,10 @@ int main(int argc, char ** argv)
     shiftDFT(filtered);
     // plotDFTMagnitudeSpectrum(filtered);
 
-
     Mat idft;
     calculateIDFT(filtered, idft);
-//    for (int i = 0; i < srcDFT.size().height; ++i) {
-//        for (int j = 0; j < srcDFT.size().width; ++j) {
-//            idft.at<float>(i, j) = (float) srcDFT.at<float>(i, j) * (float) mask.at<float>(i, j);
-//        }
-//    }
-
-
-    cout << mask.channels() << " " << srcDFT.channels() << endl;
-
-
     normalize(idft, idft, 0, 255, NORM_MINMAX, CV_8UC1);
-//    cout << idft << endl;
+
 
     imshow("Original", src);
 //    imshow("Mask", mask);

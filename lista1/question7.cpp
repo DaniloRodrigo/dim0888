@@ -77,21 +77,13 @@ void applyHighBoost(Mat &src, Mat &dst, int filterSize, int k, string name){
     }
 
     dst = dst.colRange(size, dst.cols - size).rowRange(size, dst.rows - size).clone();
-
     Mat mask = src.clone();
 
-
-   mask = src - dst;
-
-    // for (int i = 0; i < src.rows; ++i) {
-    //     for (int j = 0; j < src.cols; ++j) {
-    //         int x = abs((int) src.at<uchar>(i, j) - (int) dst.at<uchar>(i, j));
-    //         mask.at<uchar>(i, j) = x;
-    //         cout << (int) src.at<uchar>(i, j) << " " <<  (int) dst.at<uchar>(i, j) << " " << (int) mask.at<uchar>(i, j) << " " << x << endl;
-    //     }
-    // }
+    // creating the mask
+    mask = src - dst;
 
 
+    // multplying the mask by k and adding to the source
     Mat result = src +  (k * mask);
 
     // imshow("Original", src);

@@ -4,25 +4,21 @@
 using namespace std;
 using namespace cv;
 
+// variables to allow selection
 Mat src, srcCallback, srcCallbackOriginal, srcDFT, srcFloat;
 Point begin, end, begin2, end2;
 bool first = true;
 bool drag = false;
-bool reject = true;
 float D, D2;
+bool reject = true; // variable to control whether the filter will reject or pass the band on the selected area
 
+// method tp draw the desired areas (only 2 is alloewd)
 void onMouse(int evt, int x, int y, int flags, void *param ) {
     Mat *srcCallback = (Mat*) param;
     if (evt == CV_EVENT_LBUTTONDOWN) {
         if(::first){
             ::begin.x = x;
             ::begin.y = y;
-
-            // ::begin2.x = 0;
-            // ::begin2.y = 0;
-            // ::end2.x = 0;
-            // ::end2.y = 0;
-            // ::D2 = 0;
         }else{
             ::begin2.x = x;
             ::begin2.y = y;
@@ -139,6 +135,7 @@ void createIdealFilter(Size size, Mat &dst, int uX, int uY, float radius) {
     dst = complexOutput;
 }
 
+// used to draw circle on the mask
 void drawCircle(Mat &src, int uX, int uY, float radius) {
     for (int i = 0; i < src.size().height; ++i) {
         for (int j = 0; j < src.size().width; ++j) {
@@ -153,6 +150,7 @@ void drawCircle(Mat &src, int uX, int uY, float radius) {
     }
 }
 
+// convert from 1 channel to 2 channels
 void toComplex(Mat src, Mat &dst){
     Mat complexOutput;
     Mat output[2] = {src, src};
@@ -160,6 +158,7 @@ void toComplex(Mat src, Mat &dst){
     dst = complexOutput;
 }
 
+// get inverse quadrat of an Point
 Point getInverse(Mat &src, Point point){
     int centerX = src.cols/2;
     int centerY = src.rows/2;
